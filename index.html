@@ -1,0 +1,726 @@
+import { useState, useRef } from "react";
+
+const FONTS = `
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Pro:ital,wght@0,300;0,400;1,300;1,400&family=JetBrains+Mono:wght@300;400&display=swap');
+`;
+
+const defaultData = {
+  scene: {
+    visual_description: "",
+    setting: "",
+    time_of_day: "",
+    weather: "",
+  },
+  character: {
+    appearance: "",
+    clothing: "",
+    action: "",
+    emotion: "",
+  },
+  camera: {
+    shot_type: "",
+    movement: "",
+    lens: "",
+    angle: "",
+  },
+  lighting: {
+    style: "",
+    color_palette: "",
+    mood: "",
+    shadow_quality: "",
+  },
+  audio: {
+    ambient_sound: "",
+    music_style: "",
+    sfx: "",
+  },
+  voiceover: {
+    text: "",
+    tone: "",
+    language: "",
+    delivery: "",
+  },
+  technical: {
+    duration: "8",
+    aspect_ratio: "9:16",
+    quality: "ultra-high",
+    style: "",
+  },
+};
+
+const SHOT_TYPES = ["Extreme Close-Up", "Close-Up", "Medium Shot", "Wide Shot", "Extreme Wide Shot", "Bird's Eye", "Low Angle", "Dutch Angle"];
+const CAMERA_MOVES = ["Static", "Slow Push In", "Pull Back", "Pan Left", "Pan Right", "Tilt Up", "Tilt Down", "Orbit", "Crane Up", "Handheld", "Dolly In", "Tracking Shot"];
+const LENSES = ["14mm ultra-wide", "24mm wide", "35mm", "50mm standard", "85mm portrait", "135mm telephoto", "200mm"];
+const LIGHTING_STYLES = ["Golden Hour", "Blue Hour", "Moonlight", "Candlelight", "Torch Light", "Diffused Overcast", "Hard Shadows", "Silhouette", "Rim Light", "Chiaroscuro"];
+const DURATIONS = ["4", "6", "8", "12", "16", "24"];
+const ASPECT_RATIOS = ["9:16", "16:9", "1:1", "4:3", "21:9"];
+const QUALITY_OPTIONS = ["standard", "high", "ultra-high", "cinematic"];
+const VISUAL_STYLES = ["photorealistic", "cinematic film", "anime", "oil painting", "watercolor", "ink wash", "fantasy epic", "documentary"];
+const DELIVERY_STYLES = ["slow and contemplative", "dramatic and powerful", "soft and intimate", "ancient and resonant", "urgent and intense"];
+const LANGUAGES = ["Indonesian", "English", "Javanese", "Sundanese"];
+
+const sections = [
+  { key: "scene", label: "SCENE", icon: "🏯", color: "#C9A96E" },
+  { key: "character", label: "CHARACTER", icon: "⚔️", color: "#8B6A9B" },
+  { key: "camera", label: "CAMERA", icon: "🎬", color: "#5B8FA8" },
+  { key: "lighting", label: "LIGHTING", icon: "🕯️", color: "#D4724A" },
+  { key: "audio", label: "SOUND", icon: "🎵", color: "#4A9B72" },
+  { key: "voiceover", label: "VOICEOVER", icon: "🗣️", color: "#A86B5B" },
+  { key: "technical", label: "TECHNICAL", icon: "⚙️", color: "#6B8FA8" },
+];
+
+const styles = {
+  app: {
+    minHeight: "100vh",
+    background: "#080A0F",
+    color: "#E8DCC8",
+    fontFamily: "'Crimson Pro', Georgia, serif",
+    position: "relative",
+    overflow: "hidden",
+  },
+  noise: {
+    position: "fixed",
+    inset: 0,
+    backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E")`,
+    pointerEvents: "none",
+    zIndex: 0,
+    opacity: 0.6,
+  },
+  gradientOrb1: {
+    position: "fixed",
+    top: "-200px",
+    right: "-100px",
+    width: "500px",
+    height: "500px",
+    background: "radial-gradient(circle, rgba(201,169,110,0.06) 0%, transparent 70%)",
+    pointerEvents: "none",
+    zIndex: 0,
+  },
+  gradientOrb2: {
+    position: "fixed",
+    bottom: "-150px",
+    left: "-100px",
+    width: "400px",
+    height: "400px",
+    background: "radial-gradient(circle, rgba(91,143,168,0.05) 0%, transparent 70%)",
+    pointerEvents: "none",
+    zIndex: 0,
+  },
+  container: {
+    position: "relative",
+    zIndex: 1,
+    maxWidth: "480px",
+    margin: "0 auto",
+    padding: "0 0 120px 0",
+  },
+  header: {
+    padding: "32px 20px 20px",
+    borderBottom: "1px solid rgba(201,169,110,0.15)",
+    marginBottom: "8px",
+  },
+  headerEyebrow: {
+    fontFamily: "'JetBrains Mono', monospace",
+    fontSize: "9px",
+    letterSpacing: "0.3em",
+    color: "#C9A96E",
+    opacity: 0.6,
+    textTransform: "uppercase",
+    marginBottom: "6px",
+  },
+  headerTitle: {
+    fontFamily: "'Cinzel', serif",
+    fontSize: "22px",
+    fontWeight: 700,
+    letterSpacing: "0.05em",
+    color: "#E8DCC8",
+    lineHeight: 1.2,
+    margin: 0,
+  },
+  headerSub: {
+    fontFamily: "'Crimson Pro', serif",
+    fontStyle: "italic",
+    fontSize: "14px",
+    color: "#8A7A62",
+    marginTop: "4px",
+  },
+  tabBar: {
+    display: "flex",
+    gap: "4px",
+    padding: "12px 16px",
+    overflowX: "auto",
+    scrollbarWidth: "none",
+    msOverflowStyle: "none",
+    borderBottom: "1px solid rgba(255,255,255,0.05)",
+  },
+  tab: (active, color) => ({
+    flexShrink: 0,
+    padding: "6px 12px",
+    borderRadius: "2px",
+    border: `1px solid ${active ? color : "rgba(255,255,255,0.08)"}`,
+    background: active ? `${color}18` : "transparent",
+    color: active ? color : "#6A5F4F",
+    fontFamily: "'JetBrains Mono', monospace",
+    fontSize: "9px",
+    letterSpacing: "0.15em",
+    cursor: "pointer",
+    transition: "all 0.2s",
+    whiteSpace: "nowrap",
+  }),
+  sectionPanel: {
+    padding: "16px",
+    animation: "fadeIn 0.3s ease",
+  },
+  sectionTitle: (color) => ({
+    fontFamily: "'Cinzel', serif",
+    fontSize: "11px",
+    letterSpacing: "0.25em",
+    color,
+    textTransform: "uppercase",
+    marginBottom: "16px",
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+  }),
+  fieldGroup: {
+    marginBottom: "14px",
+  },
+  label: {
+    fontFamily: "'JetBrains Mono', monospace",
+    fontSize: "9px",
+    letterSpacing: "0.2em",
+    color: "#6A5F4F",
+    textTransform: "uppercase",
+    marginBottom: "6px",
+    display: "block",
+  },
+  textarea: {
+    width: "100%",
+    background: "rgba(255,255,255,0.03)",
+    border: "1px solid rgba(255,255,255,0.08)",
+    borderRadius: "2px",
+    color: "#E8DCC8",
+    fontFamily: "'Crimson Pro', serif",
+    fontSize: "15px",
+    padding: "10px 12px",
+    resize: "vertical",
+    outline: "none",
+    transition: "border-color 0.2s",
+    boxSizing: "border-box",
+    minHeight: "72px",
+    lineHeight: 1.5,
+  },
+  input: {
+    width: "100%",
+    background: "rgba(255,255,255,0.03)",
+    border: "1px solid rgba(255,255,255,0.08)",
+    borderRadius: "2px",
+    color: "#E8DCC8",
+    fontFamily: "'Crimson Pro', serif",
+    fontSize: "15px",
+    padding: "9px 12px",
+    outline: "none",
+    transition: "border-color 0.2s",
+    boxSizing: "border-box",
+  },
+  select: {
+    width: "100%",
+    background: "#0E1018",
+    border: "1px solid rgba(255,255,255,0.08)",
+    borderRadius: "2px",
+    color: "#E8DCC8",
+    fontFamily: "'Crimson Pro', serif",
+    fontSize: "15px",
+    padding: "9px 12px",
+    outline: "none",
+    appearance: "none",
+    cursor: "pointer",
+    boxSizing: "border-box",
+  },
+  chipRow: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "6px",
+    marginTop: "4px",
+  },
+  chip: (active, color) => ({
+    padding: "4px 10px",
+    borderRadius: "2px",
+    border: `1px solid ${active ? color : "rgba(255,255,255,0.1)"}`,
+    background: active ? `${color}20` : "transparent",
+    color: active ? color : "#6A5F4F",
+    fontFamily: "'JetBrains Mono', monospace",
+    fontSize: "9px",
+    letterSpacing: "0.1em",
+    cursor: "pointer",
+    transition: "all 0.15s",
+  }),
+  divider: {
+    height: "1px",
+    background: "linear-gradient(90deg, transparent, rgba(201,169,110,0.12), transparent)",
+    margin: "20px 0",
+  },
+  jsonPanel: {
+    margin: "16px",
+    background: "rgba(0,0,0,0.4)",
+    border: "1px solid rgba(201,169,110,0.2)",
+    borderRadius: "4px",
+    overflow: "hidden",
+  },
+  jsonHeader: {
+    padding: "10px 14px",
+    background: "rgba(201,169,110,0.08)",
+    borderBottom: "1px solid rgba(201,169,110,0.12)",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  jsonTitle: {
+    fontFamily: "'JetBrains Mono', monospace",
+    fontSize: "9px",
+    letterSpacing: "0.2em",
+    color: "#C9A96E",
+  },
+  jsonBody: {
+    padding: "14px",
+    fontFamily: "'JetBrains Mono', monospace",
+    fontSize: "10px",
+    lineHeight: 1.7,
+    color: "#A09070",
+    overflowX: "auto",
+    maxHeight: "300px",
+    overflowY: "auto",
+    whiteSpace: "pre-wrap",
+    wordBreak: "break-all",
+  },
+  copyBtn: {
+    padding: "4px 12px",
+    background: "rgba(201,169,110,0.15)",
+    border: "1px solid rgba(201,169,110,0.3)",
+    borderRadius: "2px",
+    color: "#C9A96E",
+    fontFamily: "'JetBrains Mono', monospace",
+    fontSize: "9px",
+    letterSpacing: "0.15em",
+    cursor: "pointer",
+    transition: "all 0.2s",
+  },
+  generateBtn: {
+    position: "fixed",
+    bottom: "24px",
+    left: "50%",
+    transform: "translateX(-50%)",
+    zIndex: 10,
+    padding: "14px 40px",
+    background: "linear-gradient(135deg, #C9A96E, #8B6040)",
+    border: "none",
+    borderRadius: "2px",
+    color: "#080A0F",
+    fontFamily: "'Cinzel', serif",
+    fontSize: "11px",
+    fontWeight: 700,
+    letterSpacing: "0.25em",
+    cursor: "pointer",
+    boxShadow: "0 0 40px rgba(201,169,110,0.25), 0 4px 20px rgba(0,0,0,0.5)",
+    transition: "all 0.2s",
+    whiteSpace: "nowrap",
+  },
+  resetBtn: {
+    padding: "6px 14px",
+    background: "transparent",
+    border: "1px solid rgba(255,255,255,0.08)",
+    borderRadius: "2px",
+    color: "#6A5F4F",
+    fontFamily: "'JetBrains Mono', monospace",
+    fontSize: "9px",
+    letterSpacing: "0.15em",
+    cursor: "pointer",
+  },
+  notice: {
+    fontFamily: "'JetBrains Mono', monospace",
+    fontSize: "9px",
+    color: "#4A9B72",
+    letterSpacing: "0.1em",
+    padding: "6px 14px 10px",
+  },
+};
+
+function colorizeJSON(json) {
+  return json
+    .replace(/"([^"]+)":/g, '<span style="color:#8BB4C8">"$1"</span>:')
+    .replace(/: "([^"]*)"/g, ': <span style="color:#A8C8A0">"$1"</span>')
+    .replace(/: (\d+)/g, ': <span style="color:#D4A070">$1</span>');
+}
+
+export default function VEO3Generator() {
+  const [activeSection, setActiveSection] = useState("scene");
+  const [data, setData] = useState(defaultData);
+  const [generated, setGenerated] = useState(null);
+  const [copied, setCopied] = useState(false);
+  const jsonRef = useRef();
+
+  const update = (section, field, value) => {
+    setData(prev => ({ ...prev, [section]: { ...prev[section], [field]: value } }));
+    setGenerated(null);
+  };
+
+  const toggleChip = (section, field, value) => {
+    const current = data[section][field];
+    update(section, field, current === value ? "" : value);
+  };
+
+  const buildJSON = () => {
+    const clean = {};
+    Object.entries(data).forEach(([sec, fields]) => {
+      const filtered = Object.fromEntries(Object.entries(fields).filter(([, v]) => v !== ""));
+      if (Object.keys(filtered).length > 0) clean[sec] = filtered;
+    });
+    return JSON.stringify(clean, null, 2);
+  };
+
+  const handleGenerate = () => {
+    setGenerated(buildJSON());
+    setTimeout(() => {
+      jsonRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 100);
+  };
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(generated);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleReset = () => {
+    setData(defaultData);
+    setGenerated(null);
+  };
+
+  const activeColor = sections.find(s => s.key === activeSection)?.color || "#C9A96E";
+
+  const renderSection = () => {
+    const d = data[activeSection];
+    switch (activeSection) {
+      case "scene":
+        return (
+          <div style={styles.sectionPanel}>
+            <div style={styles.sectionTitle(activeColor)}>
+              <span>🏯</span> Scene & Visual Description
+            </div>
+            <div style={styles.fieldGroup}>
+              <label style={styles.label}>Visual Description</label>
+              <textarea style={styles.textarea} placeholder="Describe the main visual scene in detail..." value={d.visual_description} onChange={e => update("scene","visual_description", e.target.value)} rows={4} />
+            </div>
+            <div style={styles.fieldGroup}>
+              <label style={styles.label}>Setting / Location</label>
+              <input style={styles.input} placeholder="e.g. Ancient Majapahit palace courtyard..." value={d.setting} onChange={e => update("scene","setting",e.target.value)} />
+            </div>
+            <div style={styles.fieldGroup}>
+              <label style={styles.label}>Time of Day</label>
+              <div style={styles.chipRow}>
+                {["Dawn","Morning","Noon","Golden Hour","Dusk","Blue Hour","Night","Midnight"].map(t => (
+                  <div key={t} style={styles.chip(d.time_of_day === t, activeColor)} onClick={() => toggleChip("scene","time_of_day",t)}>{t}</div>
+                ))}
+              </div>
+            </div>
+            <div style={styles.fieldGroup}>
+              <label style={styles.label}>Weather / Atmosphere</label>
+              <div style={styles.chipRow}>
+                {["Clear","Misty","Rainy","Stormy","Foggy","Dusty","Smoky","Overcast","Hazy"].map(t => (
+                  <div key={t} style={styles.chip(d.weather === t, activeColor)} onClick={() => toggleChip("scene","weather",t)}>{t}</div>
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+
+      case "character":
+        return (
+          <div style={styles.sectionPanel}>
+            <div style={styles.sectionTitle(activeColor)}>
+              <span>⚔️</span> Character Description
+            </div>
+            <div style={styles.fieldGroup}>
+              <label style={styles.label}>Physical Appearance</label>
+              <textarea style={styles.textarea} placeholder="e.g. A tall Javanese warrior, dark skin, sharp eyes, long black hair..." value={d.appearance} onChange={e => update("character","appearance",e.target.value)} rows={3} />
+            </div>
+            <div style={styles.fieldGroup}>
+              <label style={styles.label}>Clothing & Accessories</label>
+              <textarea style={styles.textarea} placeholder="e.g. Gold-trimmed batik parang cloth, keris at waist, copper bracers..." value={d.clothing} onChange={e => update("character","clothing",e.target.value)} rows={3} />
+            </div>
+            <div style={styles.fieldGroup}>
+              <label style={styles.label}>Action / Pose</label>
+              <input style={styles.input} placeholder="e.g. Standing at the bow of the ship, looking toward the horizon..." value={d.action} onChange={e => update("character","action",e.target.value)} />
+            </div>
+            <div style={styles.fieldGroup}>
+              <label style={styles.label}>Emotion / Expression</label>
+              <div style={styles.chipRow}>
+                {["Calm","Determined","Grief","Rage","Melancholy","Proud","Fearless","Contemplative","Reverent"].map(t => (
+                  <div key={t} style={styles.chip(d.emotion === t, activeColor)} onClick={() => toggleChip("character","emotion",t)}>{t}</div>
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+
+      case "camera":
+        return (
+          <div style={styles.sectionPanel}>
+            <div style={styles.sectionTitle(activeColor)}>
+              <span>🎬</span> Camera Movement
+            </div>
+            <div style={styles.fieldGroup}>
+              <label style={styles.label}>Shot Type</label>
+              <div style={styles.chipRow}>
+                {SHOT_TYPES.map(t => (
+                  <div key={t} style={styles.chip(d.shot_type === t, activeColor)} onClick={() => toggleChip("camera","shot_type",t)}>{t}</div>
+                ))}
+              </div>
+            </div>
+            <div style={styles.fieldGroup}>
+              <label style={styles.label}>Camera Movement</label>
+              <div style={styles.chipRow}>
+                {CAMERA_MOVES.map(t => (
+                  <div key={t} style={styles.chip(d.movement === t, activeColor)} onClick={() => toggleChip("camera","movement",t)}>{t}</div>
+                ))}
+              </div>
+            </div>
+            <div style={styles.fieldGroup}>
+              <label style={styles.label}>Lens</label>
+              <div style={styles.chipRow}>
+                {LENSES.map(t => (
+                  <div key={t} style={styles.chip(d.lens === t, activeColor)} onClick={() => toggleChip("camera","lens",t)}>{t}</div>
+                ))}
+              </div>
+            </div>
+            <div style={styles.fieldGroup}>
+              <label style={styles.label}>Custom Camera Note</label>
+              <input style={styles.input} placeholder="e.g. Extremely slow, almost frozen. Frame holds 2s before drift..." value={d.angle} onChange={e => update("camera","angle",e.target.value)} />
+            </div>
+          </div>
+        );
+
+      case "lighting":
+        return (
+          <div style={styles.sectionPanel}>
+            <div style={styles.sectionTitle(activeColor)}>
+              <span>🕯️</span> Lighting & Color Palette
+            </div>
+            <div style={styles.fieldGroup}>
+              <label style={styles.label}>Lighting Style</label>
+              <div style={styles.chipRow}>
+                {LIGHTING_STYLES.map(t => (
+                  <div key={t} style={styles.chip(d.style === t, activeColor)} onClick={() => toggleChip("lighting","style",t)}>{t}</div>
+                ))}
+              </div>
+            </div>
+            <div style={styles.fieldGroup}>
+              <label style={styles.label}>Color Palette</label>
+              <input style={styles.input} placeholder="e.g. Teal, deep gold, void black, ember orange..." value={d.color_palette} onChange={e => update("lighting","color_palette",e.target.value)} />
+            </div>
+            <div style={styles.fieldGroup}>
+              <label style={styles.label}>Mood / Tone</label>
+              <input style={styles.input} placeholder="e.g. Heavy, sacred, melancholic, ancient..." value={d.mood} onChange={e => update("lighting","mood",e.target.value)} />
+            </div>
+            <div style={styles.fieldGroup}>
+              <label style={styles.label}>Shadow Quality</label>
+              <div style={styles.chipRow}>
+                {["Soft diffused","Medium","Hard dramatic","Deep chiaroscuro","Minimal","Dappled"].map(t => (
+                  <div key={t} style={styles.chip(d.shadow_quality === t, activeColor)} onClick={() => toggleChip("lighting","shadow_quality",t)}>{t}</div>
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+
+      case "audio":
+        return (
+          <div style={styles.sectionPanel}>
+            <div style={styles.sectionTitle(activeColor)}>
+              <span>🎵</span> Sound Design & Audio
+            </div>
+            <div style={styles.fieldGroup}>
+              <label style={styles.label}>Ambient Sound</label>
+              <textarea style={styles.textarea} placeholder="e.g. Ocean waves, distant gamelan, wind through bamboo, fire crackling..." value={d.ambient_sound} onChange={e => update("audio","ambient_sound",e.target.value)} rows={2} />
+            </div>
+            <div style={styles.fieldGroup}>
+              <label style={styles.label}>Music Style</label>
+              <input style={styles.input} placeholder="e.g. Orchestral Javanese gamelan fused with low drone strings..." value={d.music_style} onChange={e => update("audio","music_style",e.target.value)} />
+            </div>
+            <div style={styles.fieldGroup}>
+              <label style={styles.label}>Sound FX</label>
+              <textarea style={styles.textarea} placeholder="e.g. Thunderous distant drums, sword unsheathed, rain on stone..." value={d.sfx} onChange={e => update("audio","sfx",e.target.value)} rows={2} />
+            </div>
+          </div>
+        );
+
+      case "voiceover":
+        return (
+          <div style={styles.sectionPanel}>
+            <div style={styles.sectionTitle(activeColor)}>
+              <span>🗣️</span> Voiceover / Narration
+            </div>
+            <div style={styles.fieldGroup}>
+              <label style={styles.label}>Narration Text</label>
+              <textarea style={styles.textarea} placeholder="Write the voiceover script here..." value={d.text} onChange={e => update("voiceover","text",e.target.value)} rows={5} />
+            </div>
+            <div style={styles.fieldGroup}>
+              <label style={styles.label}>Language</label>
+              <div style={styles.chipRow}>
+                {LANGUAGES.map(t => (
+                  <div key={t} style={styles.chip(d.language === t, activeColor)} onClick={() => toggleChip("voiceover","language",t)}>{t}</div>
+                ))}
+              </div>
+            </div>
+            <div style={styles.fieldGroup}>
+              <label style={styles.label}>Voice Tone</label>
+              <input style={styles.input} placeholder="e.g. Deep, baritone, aged, weathered, male 50s..." value={d.tone} onChange={e => update("voiceover","tone",e.target.value)} />
+            </div>
+            <div style={styles.fieldGroup}>
+              <label style={styles.label}>Delivery Style</label>
+              <div style={styles.chipRow}>
+                {DELIVERY_STYLES.map(t => (
+                  <div key={t} style={styles.chip(d.delivery === t, activeColor)} onClick={() => toggleChip("voiceover","delivery",t)}>{t}</div>
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+
+      case "technical":
+        return (
+          <div style={styles.sectionPanel}>
+            <div style={styles.sectionTitle(activeColor)}>
+              <span>⚙️</span> Technical Settings
+            </div>
+            <div style={styles.fieldGroup}>
+              <label style={styles.label}>Duration (seconds)</label>
+              <div style={styles.chipRow}>
+                {DURATIONS.map(t => (
+                  <div key={t} style={styles.chip(d.duration === t, activeColor)} onClick={() => toggleChip("technical","duration",t)}>{t}s</div>
+                ))}
+              </div>
+            </div>
+            <div style={styles.fieldGroup}>
+              <label style={styles.label}>Aspect Ratio</label>
+              <div style={styles.chipRow}>
+                {ASPECT_RATIOS.map(t => (
+                  <div key={t} style={styles.chip(d.aspect_ratio === t, activeColor)} onClick={() => toggleChip("technical","aspect_ratio",t)}>{t}</div>
+                ))}
+              </div>
+            </div>
+            <div style={styles.fieldGroup}>
+              <label style={styles.label}>Quality</label>
+              <div style={styles.chipRow}>
+                {QUALITY_OPTIONS.map(t => (
+                  <div key={t} style={styles.chip(d.quality === t, activeColor)} onClick={() => toggleChip("technical","quality",t)}>{t}</div>
+                ))}
+              </div>
+            </div>
+            <div style={styles.fieldGroup}>
+              <label style={styles.label}>Visual Style</label>
+              <div style={styles.chipRow}>
+                {VISUAL_STYLES.map(t => (
+                  <div key={t} style={styles.chip(d.style === t, activeColor)} onClick={() => toggleChip("technical","style",t)}>{t}</div>
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <>
+      <style>{FONTS}</style>
+      <style>{`
+        * { box-sizing: border-box; }
+        body { margin: 0; background: #080A0F; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+        textarea:focus, input:focus { border-color: rgba(201,169,110,0.4) !important; }
+        ::-webkit-scrollbar { width: 3px; height: 3px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(201,169,110,0.2); border-radius: 2px; }
+        select option { background: #0E1018; }
+        .tab::-webkit-scrollbar { display: none; }
+      `}</style>
+
+      <div style={styles.app}>
+        <div style={styles.noise} />
+        <div style={styles.gradientOrb1} />
+        <div style={styles.gradientOrb2} />
+
+        <div style={styles.container}>
+          {/* HEADER */}
+          <div style={styles.header}>
+            <div style={styles.headerEyebrow}>GOOGLE VEO 3 · PROMPT TOOLKIT</div>
+            <h1 style={styles.headerTitle}>JSON PROMPT<br />GENERATOR</h1>
+            <div style={styles.headerSub}>Craft cinematic video prompts for VEO 3</div>
+          </div>
+
+          {/* TAB BAR */}
+          <div style={styles.tabBar}>
+            {sections.map(s => (
+              <div
+                key={s.key}
+                style={styles.tab(activeSection === s.key, s.color)}
+                onClick={() => setActiveSection(s.key)}
+              >
+                {s.icon} {s.label}
+              </div>
+            ))}
+          </div>
+
+          {/* SECTION CONTENT */}
+          {renderSection()}
+
+          {/* SECTION PROGRESS */}
+          <div style={{ padding: "0 16px", display: "flex", gap: "6px" }}>
+            {sections.map(s => {
+              const filled = Object.values(data[s.key]).filter(v => v !== "").length;
+              const total = Object.keys(data[s.key]).length;
+              return (
+                <div key={s.key} style={{ flex: 1, height: "2px", background: "rgba(255,255,255,0.06)", borderRadius: "2px", overflow: "hidden" }}>
+                  <div style={{ height: "100%", width: `${(filled / total) * 100}%`, background: s.color, transition: "width 0.3s" }} />
+                </div>
+              );
+            })}
+          </div>
+          <div style={{ padding: "6px 16px 0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: "9px", color: "#4A3F2F", letterSpacing: "0.1em" }}>
+              {sections.map(s => Object.values(data[s.key]).filter(v => v !== "").length).reduce((a,b)=>a+b,0)} / {sections.map(s => Object.keys(data[s.key]).length).reduce((a,b)=>a+b,0)} fields filled
+            </div>
+            <button style={styles.resetBtn} onClick={handleReset}>RESET ALL</button>
+          </div>
+
+          {/* JSON OUTPUT */}
+          {generated && (
+            <div ref={jsonRef} style={{ animation: "fadeIn 0.4s ease" }}>
+              <div style={styles.divider} />
+              <div style={styles.jsonPanel}>
+                <div style={styles.jsonHeader}>
+                  <span style={styles.jsonTitle}>▸ GENERATED PROMPT JSON</span>
+                  <button style={styles.copyBtn} onClick={handleCopy}>
+                    {copied ? "✓ COPIED" : "COPY"}
+                  </button>
+                </div>
+                <div style={styles.jsonBody} dangerouslySetInnerHTML={{ __html: colorizeJSON(generated) }} />
+                {copied && <div style={styles.notice}>✓ Prompt copied to clipboard — ready to paste into VEO 3</div>}
+              </div>
+            </div>
+          )}
+
+          {/* SPACER for fixed button */}
+          <div style={{ height: "20px" }} />
+        </div>
+
+        {/* GENERATE BUTTON */}
+        <button style={styles.generateBtn} onClick={handleGenerate}>
+          ⬡ GENERATE JSON PROMPT
+        </button>
+      </div>
+    </>
+  );
+}
